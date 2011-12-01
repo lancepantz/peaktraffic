@@ -1,0 +1,59 @@
+#!/usr/bin/ruby
+
+#Problem: http://www.facebook.com/careers/puzzles.php?puzzle_id=8
+
+interactions = Hash.new
+$MATRIX = Hash.new
+
+File.open( ARGV.pop, "r" ) do |f|
+  while !f.eof?
+    line = f.readline.chomp
+    timestamp, from, to = line.split( "\t" )
+
+    unless from == to
+      interactions[from] ||= Hash.new
+      interactions[from][to] = true
+
+      if interactions[to] && interactions[to].include?( from )
+        $MATRIX[from] ||= Array.new
+        $MATRIX[from] << to
+        $MATRIX[to] ||= Array.new
+        $MATRIX[to] << from
+      end
+    end
+  end
+end
+
+$CLIQUES = []
+
+#based on "A note on the problem of reporting maximal cliques"
+#which expanded on the Bron-Kerbosh algorithm
+#from: ftp://ftp-sop.inria.fr/geometrica/fcazals/papers/ncliques.pdf
+
+#r: currently growing clique
+#p: prospective nodes connected to r
+#x: all nodes already processed
+
+def bk( r, p, x )
+  if p.empty? && x.empty?
+    $CLIQUES << r.sort if r.length >= 3
+  else
+    possible_pivots = p + x
+    pivot = possible_pivots.inject() do |max, this|
+      #select pivot with the largest degree
+      $MATRIX[max].length > $MATRIX[this].length ? max : this
+    end
+
+    p.length.times do |i|
+      n = p[i]
+      unless $MATRIX[n].include? pivot
+        p[i] = nil
+        bk( r + [n], p & $MATRIX[n], x & $MATRIX[n] )
+        x << n
+      end
+    end
+  end
+end
+
+bk( [], $MATRIX.keys, [] )
+$CLIQUES.sort.each{ |c| puts c.join( ", " ) }
